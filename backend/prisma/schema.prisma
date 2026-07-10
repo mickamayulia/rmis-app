@@ -1,13 +1,63 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model users {
+  id         Int      @id @default(autoincrement())
+  google_id  String   @unique
+  email      String   @unique
+  name       String
+  role       String   @default("Manager") // Super Admin, Admin, Manager
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model repairs {
+  job_no           String    @id
+  part_number      String
+  customer_name    String?
+  wo               String?
+  an               String?
+  po               String?
+  qty_in           Int?
+  qty_out          Int?
+  date_in          DateTime
+  date_out         DateTime?
+  unit_model       String?
+  part_description String?
+  soh              String?
+  remarks          String?
+  status           String?   @default("In Progress")
+  
+  labor_cost       Float?
+  material_cost    Float?
+  estimated_completion DateTime?
+  pdf_path         String?
+  
+  // New Fields for Quotation Template
+  contact_person   String?
+  address          String?
+  jam              String?
+  procedures       Json?
+  inspections      Json?
+  images           Json?   // Digunakan untuk gambar dinamis
+  
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+}
+
+model import_logs {
+  id           Int      @id @default(autoincrement())
+  filename     String
+  status       String   // Success, Failed
+  records_read Int      @default(0)
+  error_message String?
+  user_id      Int
+  
+  created_at   DateTime @default(now())
 }
