@@ -33,15 +33,34 @@ const DashboardPage = () => {
     totalOverdue: 0
   });
   const [monthlyData, setMonthlyData] = useState([]);
+  const [customerFilter, setCustomerFilter] = useState('');
+  const [customersList, setCustomersList] = useState([]);
+
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [customerFilter]);
+
+  const fetchCustomers = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/api/v1/repairs/customers', {
+        withCredentials: true
+      });
+      setCustomersList(response.data.data || []);
+    } catch (err) {
+      console.error("Failed to fetch customers:", err);
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
-      // Ambil semua data (limit 1000 untuk contoh ini)
-      const res = await axios.get('http://localhost:5000/api/v1/repairs?limit=1000', {
+      const params = new URLSearchParams({ limit: 1000 });
+      if (customerFilter) params.append('customer', customerFilter);
+
+      const res = await axios.get(`http://localhost:5000/api/v1/repairs?${params.toString()}`, {
         withCredentials: true
       });
       
@@ -151,9 +170,23 @@ const DashboardPage = () => {
 
   return (
     <div className="max-w-7xl mx-auto pb-10">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard Analytics</h1>
-        <p className="text-sm text-gray-500 mt-1">Ringkasan performa bengkel dan status 12-Day SLA.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard Analytics</h1>
+          <p className="text-sm text-gray-500 mt-1">Ringkasan performa bengkel dan status 12-Day SLA.</p>
+        </div>
+        <div className="w-full sm:w-64">
+          <select
+            className="block w-full pl-3 pr-8 py-2 text-sm border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md border shadow-sm"
+            value={customerFilter}
+            onChange={(e) => setCustomerFilter(e.target.value)}
+          >
+            <option value="">Semua Perusahaan</option>
+            {customersList.map((c, i) => (
+              <option key={i} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Summary Cards */}

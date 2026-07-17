@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { ArrowLeft, Save, Loader2, FileText, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, FileText, CheckCircle, AlertCircle, Edit } from 'lucide-react';
 
 const RepairDetailPage = () => {
   const { id } = useParams();
@@ -120,16 +120,12 @@ const RepairDetailPage = () => {
             }`}>
               {repair.status}
             </span>
-            {repair.pdf_path && (
-              <a 
-                href={`http://localhost:5000${repair.pdf_path}`} 
-                target="_blank" 
-                rel="noreferrer"
-                className="flex items-center gap-1.5 text-blue-600 hover:text-blue-800 text-sm font-medium bg-blue-50 px-3 py-1.5 rounded-md transition-colors"
+              <button 
+                onClick={() => navigate(`/imports?edit=${encodeURIComponent(repair.job_no)}`)}
+                className="mt-2 flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded-md hover:bg-blue-100 transition-colors border border-blue-200"
               >
-                <FileText size={14} /> Lihat Dokumen (DOCX)
-              </a>
-            )}
+                <Edit size={14} /> Revisi Quotation
+              </button>
           </div>
         </div>
 

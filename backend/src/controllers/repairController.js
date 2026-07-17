@@ -3,7 +3,7 @@ const prisma = new PrismaClient();
 
 exports.getAllRepairs = async (req, res) => {
   try {
-    const { search, status, page = 1, limit = 50 } = req.query;
+    const { search, status, customer, page = 1, limit = 50 } = req.query;
     
     // Pagination logic
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -12,12 +12,21 @@ exports.getAllRepairs = async (req, res) => {
     // Build query conditions
     const whereCondition = {};
     
+    if (customer) {
+      whereCondition.customer_name = customer;
+    }
+    
     // Notice: we DO NOT filter by status here in DB because 'Overdue' is calculated dynamically.
     if (search) {
       whereCondition.OR = [
         { job_no: { contains: search, mode: 'insensitive' } },
         { customer_name: { contains: search, mode: 'insensitive' } },
-        { unit_model: { contains: search, mode: 'insensitive' } }
+        { unit_model: { contains: search, mode: 'insensitive' } },
+        { part_number: { contains: search, mode: 'insensitive' } },
+        { part_description: { contains: search, mode: 'insensitive' } },
+        { wo: { contains: search, mode: 'insensitive' } },
+        { an: { contains: search, mode: 'insensitive' } },
+        { po: { contains: search, mode: 'insensitive' } }
       ];
     }
 
@@ -135,5 +144,33 @@ exports.updateRepair = async (req, res) => {
   } catch (error) {
     console.error('Error updating repair:', error);
     return res.status(500).json({ status: 'error', message: 'Gagal memperbarui data' });
+  }
+};
+
+exports.getCustomers = async (req, res) => {
+  try {
+    const customers = await prisma.repairs.findMany({
+      select: { customer_name: true },
+      distinct: ['customer_name'],
+      where: {
+        customer_name: { not: null }
+      },
+      orderBy: { customer_name: 'asc' }
+    });
+    
+    const customerNames = customers
+      .map(c => c.customer_name)
+      .filter(name => name && name.trim() !== '');
+
+    return res.status(200).json({
+      status: 'success',
+      data: customerNames
+    });
+  } catch (error) {
+    console.error('Error fetching customers:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Gagal memuat data pelanggan'
+    });
   }
 };

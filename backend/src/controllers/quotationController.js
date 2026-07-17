@@ -35,16 +35,6 @@ exports.generateQuotation = async (req, res) => {
     });
   } catch (error) {
     console.error('Error generating quotation:', error);
-    
-    // Check for unique constraint violation on Job No
-    if (error.code === 'P2002' && error.meta?.target?.includes('job_no')) {
-       return res.status(409).json({
-         status: 'error',
-         code: 'DB002',
-         message: 'Job Number sudah ada. Gunakan Job Number yang berbeda atau lakukan fitur Re-generate.'
-       });
-    }
-
     return res.status(500).json({
       status: 'error',
       code: 'DB001',

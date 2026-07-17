@@ -165,6 +165,7 @@ const { requireAuth, requireRole } = require('../middlewares/authMiddleware');
  *         description: Server error
  */
 router.get('/', requireAuth, repairController.getAllRepairs);
+router.get('/customers', requireAuth, repairController.getCustomers);
 
 /**
  * @swagger

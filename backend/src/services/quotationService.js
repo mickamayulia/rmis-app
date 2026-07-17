@@ -205,10 +205,8 @@ try {
         console.error("Failed to generate PDF via PowerShell:", e);
     }
 
-    // 5. Save Record to Database
-    const repairRecord = await prisma.repairs.create({
-      data: {
-        job_no: data.job_no,
+    // Base data object
+    const baseData = {
         part_number: data.part_number,
         customer_name: data.customer_name,
         contact_person: data.contact_person,
@@ -216,7 +214,6 @@ try {
         jam: data.jam,
         procedures: data.procedures || [],
         inspections: data.inspections || [],
-        images: imagesArray,
         wo: data.wo,
         an: data.an,
         po: data.po,
@@ -228,7 +225,22 @@ try {
         labor_cost: parseFloat(data.labor_cost) || 0,
         material_cost: parseFloat(data.material_cost) || 0,
         estimated_completion: data.estimated_completion ? new Date(data.estimated_completion) : null,
-        pdf_path: pdfUrl || publicUrl, // Storing PDF if available, fallback to DOCX
+        pdf_path: pdfUrl || publicUrl
+    };
+
+    const updateData = { ...baseData };
+    if (imagesArray.length > 0) {
+      updateData.images = imagesArray;
+    }
+
+    // 5. Save Record to Database (Upsert to support Edit Mode)
+    const repairRecord = await prisma.repairs.upsert({
+      where: { job_no: data.job_no },
+      update: updateData,
+      create: {
+        ...baseData,
+        job_no: data.job_no,
+        images: imagesArray,
         status: 'In Progress' 
       }
     });

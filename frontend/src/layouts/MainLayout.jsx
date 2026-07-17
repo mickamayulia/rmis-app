@@ -66,7 +66,7 @@ const MainLayout = () => {
       {/* Main Content Area */}
       <main className="flex-1 overflow-auto">
         <header className="h-16 bg-white border-b border-gray-200 px-8 flex items-center justify-between shadow-sm sticky top-0 z-10">
-          <h2 className="text-lg font-medium text-gray-700">PT Raf Robian Pratama</h2>
+          <h2 className="text-lg font-medium text-gray-700">PT RAF ROBIAN TEHNIK</h2>
           <div className="flex items-center gap-3 text-sm text-gray-600">
             <div className="flex flex-col items-end">
               <span className="font-semibold text-gray-800">{user?.name || 'User'}</span>

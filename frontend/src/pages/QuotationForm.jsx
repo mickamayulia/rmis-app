@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useForm, useFieldArray } from 'react-hook-form';
+import { useSearchParams } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { CheckCircle, AlertCircle, Loader2, FileText, Plus, Trash2 } from 'lucide-react';
@@ -50,6 +51,10 @@ const QuotationForm = () => {
   const [pdfUrl, setPdfUrl] = useState(null);
   const [docxUrl, setDocxUrl] = useState(null);
   const [selectedFiles, setSelectedFiles] = useState([]);
+  const [searchParams] = useSearchParams();
+  const editJobNo = searchParams.get('edit');
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [initialFetchLoading, setInitialFetchLoading] = useState(false);
 
   const { register, control, handleSubmit, formState: { errors }, reset } = useForm({
     resolver: zodResolver(quotationSchema),
@@ -61,6 +66,48 @@ const QuotationForm = () => {
       inspections: []
     }
   });
+
+  useEffect(() => {
+    if (editJobNo) {
+      setIsEditMode(true);
+      fetchRepairData(editJobNo);
+    }
+  }, [editJobNo]);
+
+  const fetchRepairData = async (jobNo) => {
+    setInitialFetchLoading(true);
+    try {
+      const response = await axios.get(`http://localhost:5000/api/v1/repairs/${jobNo}`, {
+        withCredentials: true
+      });
+      const data = response.data.data;
+      
+      reset({
+        job_no: data.job_no || '',
+        date_in: data.date_in ? new Date(data.date_in).toISOString().split('T')[0] : '',
+        customer_name: data.customer_name || '',
+        contact_person: data.contact_person || '',
+        address: data.address || '',
+        wo: data.wo || '',
+        an: data.an || '',
+        unit_model: data.unit_model || '',
+        part_description: data.part_description || '',
+        part_number: data.part_number || '',
+        qty_in: data.qty_in || 1,
+        labor_cost: data.labor_cost || 0,
+        material_cost: data.material_cost || 0,
+        jam: data.jam || '',
+        remarks: data.remarks || '',
+        procedures: Array.isArray(data.procedures) ? data.procedures.join('\n') : (data.procedures || ''),
+        inspections: data.inspections || []
+      });
+    } catch (err) {
+      console.error(err);
+      setMessage({ type: 'error', text: 'Gagal memuat data revisi.' });
+    } finally {
+      setInitialFetchLoading(false);
+    }
+  };
 
   const { fields: inspectionFields, append: appendInspection, remove: removeInspection } = useFieldArray({ control, name: 'inspections' });
 
@@ -123,9 +170,21 @@ const QuotationForm = () => {
     <div className="max-w-4xl mx-auto pb-10">
       {/* Page Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-gray-900">Quotation Generator</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">Quotation Generator {isEditMode ? '(Mode Revisi)' : ''}</h1>
         <p className="text-sm text-gray-500 mt-1">Isi formulir berikut untuk mencetak dokumen Quotation dan menyimpannya ke database.</p>
       </div>
+
+      {isEditMode && (
+        <div className="mb-6 bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg flex items-start gap-3 text-sm">
+          <AlertCircle className="mt-0.5 shrink-0" size={18} />
+          <div>
+            <strong>Mode Revisi (Job No: {editJobNo})</strong>
+            <p className="mt-1">
+              Data lama telah dimuat secara otomatis. Jika Anda ingin mengganti foto, silakan upload <strong>semua foto baru</strong> (maks 6). Jika tidak ada foto yang di-upload, foto lama akan tetap dipertahankan.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Status Message */}
       {message && (
@@ -149,6 +208,12 @@ const QuotationForm = () => {
         </div>
       )}
 
+      {initialFetchLoading ? (
+        <div className="flex flex-col items-center justify-center h-64 text-gray-500 bg-white rounded-xl shadow-sm border border-gray-200">
+          <Loader2 className="animate-spin mb-4 text-blue-500" size={32} />
+          Memuat data revisi...
+        </div>
+      ) : (
       <form onSubmit={handleSubmit(onSubmit)} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
         <div className="p-6 space-y-8">
 
@@ -431,10 +496,11 @@ const QuotationForm = () => {
             className="flex items-center gap-2 bg-gray-900 text-white px-6 py-2.5 rounded-md text-sm font-medium hover:bg-gray-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {loading ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />}
-            {loading ? 'Generating...' : 'Generate DOCX'}
+            {loading ? (isEditMode ? 'Menyimpan Revisi...' : 'Generating...') : (isEditMode ? 'Simpan Revisi & Re-Generate' : 'Generate DOCX')}
           </button>
         </div>
       </form>
+      )}
     </div>
   );
 };

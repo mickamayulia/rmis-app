@@ -26,6 +26,9 @@ backend/dist/
 # Backend public files (uploaded documents / PDFs)
 backend/public/
 
+# Dokumen
+docs
+
 # IDEs and editors
 .vscode/
 .idea/
