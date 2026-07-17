@@ -12,10 +12,7 @@ exports.getAllRepairs = async (req, res) => {
     // Build query conditions
     const whereCondition = {};
     
-    if (status) {
-      whereCondition.status = status;
-    }
-    
+    // Notice: we DO NOT filter by status here in DB because 'Overdue' is calculated dynamically.
     if (search) {
       whereCondition.OR = [
         { job_no: { contains: search, mode: 'insensitive' } },
@@ -24,33 +21,26 @@ exports.getAllRepairs = async (req, res) => {
       ];
     }
 
-    const repairs = await prisma.repairs.findMany({
+    const rawRepairs = await prisma.repairs.findMany({
       where: whereCondition,
-      skip,
-      take,
       orderBy: { created_at: 'desc' }
     });
 
-    const total = await prisma.repairs.count({ where: whereCondition });
-
-    // Calculate dynamic fields: repair_days, remaining_days, and update overdue status
     const today = new Date();
     
-    const enrichedRepairs = repairs.map(repair => {
+    // Enrich with dynamic fields
+    const enrichedRepairs = rawRepairs.map(repair => {
       const dateIn = new Date(repair.date_in);
       const dateOut = repair.date_out ? new Date(repair.date_out) : today;
       
-      // Hitung selisih hari pengerjaan
       const diffTime = Math.abs(dateOut - dateIn);
       const repairDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       
-      // Ambil standar 12 hari (sesuai PRD)
       const standardDays = 12;
       const remainingDays = standardDays - repairDays;
       
       let currentStatus = repair.status;
       
-      // Overdue Automation Display (Jika lebih dari 12 hari kerja dan belum selesai)
       if (repairDays > standardDays && repair.status === 'In Progress') {
         currentStatus = 'Overdue';
       }
@@ -63,9 +53,18 @@ exports.getAllRepairs = async (req, res) => {
       };
     });
 
+    // Apply Status Filter in Memory
+    const filteredRepairs = status 
+      ? enrichedRepairs.filter(r => r.status === status)
+      : enrichedRepairs;
+
+    // Apply Pagination in Memory
+    const total = filteredRepairs.length;
+    const paginatedRepairs = filteredRepairs.slice(skip, skip + take);
+
     return res.status(200).json({
       status: 'success',
-      data: enrichedRepairs,
+      data: paginatedRepairs,
       meta: {
         total,
         page: parseInt(page),
@@ -116,10 +115,15 @@ exports.updateRepair = async (req, res) => {
     const updatedRepair = await prisma.repairs.update({
       where: { job_no: id },
       data: {
-        qty_out: updateData.qty_out ? parseInt(updateData.qty_out) : undefined,
+        // Fields updatable from monitoring/detail page
+        qty_out: updateData.qty_out !== undefined ? parseInt(updateData.qty_out) : undefined,
         date_out: updateData.date_out ? new Date(updateData.date_out) : undefined,
-        remarks: updateData.remarks,
-        status: updateData.status
+        status: updateData.status !== undefined ? updateData.status : undefined,
+
+        // Fields that are NOT in QuotationForm — diisi oleh Admin saat monitoring
+        po: updateData.po !== undefined ? updateData.po : undefined,
+        remarks: updateData.remarks !== undefined ? updateData.remarks : undefined,
+        soh: updateData.soh !== undefined ? updateData.soh : undefined,
       }
     });
 

@@ -93,3 +93,50 @@ exports.logout = (req, res) => {
   res.clearCookie('token');
   return res.status(200).json({ status: 'success', message: 'Berhasil logout' });
 };
+
+exports.mockLogin = async (req, res) => {
+  try {
+    const email = 'admin@rafrobian.com';
+    let user = await prisma.users.findUnique({ where: { email } });
+    
+    // Create mock admin if doesn't exist
+    if (!user) {
+      user = await prisma.users.create({
+        data: {
+          google_id: 'mock-google-id-123',
+          email,
+          name: 'Admin RMIS',
+          role: 'Admin'
+        }
+      });
+    }
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET || 'secret_fallback',
+      { expiresIn: '24h' }
+    );
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    });
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Berhasil login (Mock)',
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    });
+
+  } catch (error) {
+    console.error('Mock Auth Error:', error);
+    return res.status(500).json({ status: 'error', message: 'Gagal melakukan mock autentikasi' });
+  }
+};

@@ -44,6 +44,10 @@ class QuotationService {
             return emptyImageBuffer;
         },
         getSize: function(img, tagValue, tagName) {
+            // Jika gambarnya kosong, set ukurannya jadi 0 supaya tidak makan tempat
+            if (img === emptyImageBuffer) {
+                return [0, 0];
+            }
             return [250, 250]; // Fixed size 250x250 pixels
         }
     };
@@ -71,62 +75,46 @@ class QuotationService {
     }
 
     // Build measure raw xml
-    let measureXml = proceduresList.map(p => `<w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:t>${p.list}. ${p.desc}</w:t></w:r></w:p>`).join('');
+    let measureXml = proceduresList.map(p => `<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:t>${p.list}. ${p.desc}</w:t></w:r></w:p>`).join('');
     if (!measureXml) measureXml = '<w:p><w:r><w:t>-</w:t></w:r></w:p>';
 
     // Map inspections properly for docxtemplater row loops
     const inspectionsArray = data.inspections && data.inspections.length > 0
       ? data.inspections.map((insp, index) => {
-          let conditionXml = '';
-          if (insp.condition) {
-              conditionXml += `<w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:t>${insp.condition}</w:t></w:r></w:p>`;
-          }
           
-          if (insp.x_before || insp.x_after || insp.y_before || insp.y_after || insp.z_before || insp.z_after) {
-              conditionXml += `
-<w:tbl>
-  <w:tblPr>
-    <w:tblW w:w="0" w:type="auto"/>
-    <w:tblBorders>
-      <w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/>
-      <w:left w:val="single" w:sz="4" w:space="0" w:color="000000"/>
-      <w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/>
-      <w:right w:val="single" w:sz="4" w:space="0" w:color="000000"/>
-      <w:insideH w:val="single" w:sz="4" w:space="0" w:color="000000"/>
-      <w:insideV w:val="single" w:sz="4" w:space="0" w:color="000000"/>
-    </w:tblBorders>
-  </w:tblPr>
-  <w:tr>
-    <w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="D9D9D9"/></w:tcPr><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Axis</w:t></w:r></w:p></w:tc>
-    <w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="D9D9D9"/></w:tcPr><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Before</w:t></w:r></w:p></w:tc>
-    <w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="D9D9D9"/></w:tcPr><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>After</w:t></w:r></w:p></w:tc>
-  </w:tr>
-  <w:tr>
-    <w:tc><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>X</w:t></w:r></w:p></w:tc>
-    <w:tc><w:p><w:r><w:t>${insp.x_before || '-'}</w:t></w:r></w:p></w:tc>
-    <w:tc><w:p><w:r><w:t>${insp.x_after || '-'}</w:t></w:r></w:p></w:tc>
-  </w:tr>
-  <w:tr>
-    <w:tc><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Y</w:t></w:r></w:p></w:tc>
-    <w:tc><w:p><w:r><w:t>${insp.y_before || '-'}</w:t></w:r></w:p></w:tc>
-    <w:tc><w:p><w:r><w:t>${insp.y_after || '-'}</w:t></w:r></w:p></w:tc>
-  </w:tr>
-  <w:tr>
-    <w:tc><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Z</w:t></w:r></w:p></w:tc>
-    <w:tc><w:p><w:r><w:t>${insp.z_before || '-'}</w:t></w:r></w:p></w:tc>
-    <w:tc><w:p><w:r><w:t>${insp.z_after || '-'}</w:t></w:r></w:p></w:tc>
-  </w:tr>
-</w:tbl>`;
-          }
-          if (!conditionXml) conditionXml = '<w:p><w:r><w:t>-</w:t></w:r></w:p>';
+          // Detect if this checkpoint has any measurement data at all
+          const hasMeasurements = !!(
+            insp.x_before || insp.x_after ||
+            insp.y_before || insp.y_after ||
+            insp.z_before || insp.z_after
+          );
           
+          // Helper untuk memformat angka menjadi float + mm
+          const formatMeasure = (val) => {
+              if (!val || val.toString().trim() === '-' || val.toString().trim() === '') return '-';
+              const parsed = parseFloat(val.toString().replace(',', '.'));
+              if (isNaN(parsed)) return val; // Jika kebetulan diisi teks, biarkan saja
+              // Menggunakan toLocaleString untuk format koma desimal ala Indonesia (opsional, tapi pakai titik juga gapapa)
+              return parsed.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 3 }) + ' mm';
+          };
+
           return {
               no: index + 1,
               check_point: insp.check_point || '-',
-              condition: conditionXml,
-              measure: measureXml,
-              // if deskripsi is not filled, don't show undefined or dash
-              deskripsi: (insp.deskripsi && insp.deskripsi.trim() !== '' && insp.deskripsi !== 'undefined') ? insp.deskripsi : ''
+              condition: insp.condition || '-',
+              deskripsi: (insp.deskripsi && insp.deskripsi.trim() !== '' && insp.deskripsi !== 'undefined') ? insp.deskripsi : '',
+              
+              has_measurements: hasMeasurements,
+              
+              x_before: formatMeasure(insp.x_before),
+              x_after:  formatMeasure(insp.x_after),
+              y_before: formatMeasure(insp.y_before),
+              y_after:  formatMeasure(insp.y_after),
+              z_before: formatMeasure(insp.z_before),
+              z_after:  formatMeasure(insp.z_after),
+
+              // We pass proceduresList into each inspection so they can loop it in the Measure column
+              measure_procedures: proceduresList.length > 0 ? proceduresList : [{ list: '-', desc: '' }],
           };
         })
       : [];
@@ -154,11 +142,16 @@ class QuotationService {
       // Images for left and right columns
       image1: '0',
       image2: '1',
+      image3: '2',
+      image4: '3',
+      image5: '4',
+      image6: '5',
       
       jam: data.jam || '-',
       labor_price: formatCurrency(data.labor_cost || 0),
       material_price: formatCurrency(data.material_cost || 0),
       total_price: formatCurrency(totalCost),
+      remarks: data.remarks || '-',
       
       // Inspection loop
       inspections: inspectionsArray
@@ -181,6 +174,37 @@ class QuotationService {
 
     fs.writeFileSync(docPath, buf);
 
+    // 4.5 Auto-Convert DOCX to PDF using PowerShell (Windows native Word Interop)
+    const pdfFilename = `Quotation_${data.job_no}_${Date.now()}.pdf`;
+    const pdfPath = path.join(docDir, pdfFilename);
+    let pdfUrl = null;
+    
+    try {
+        const scriptPath = path.join(docDir, 'convert.ps1');
+        const scriptContent = `
+$word = New-Object -ComObject Word.Application
+$word.Visible = $false
+$word.DisplayAlerts = 'wdAlertsNone'
+try {
+  $doc = $word.Documents.Open("${docPath}")
+  $doc.SaveAs([ref]"${pdfPath}", [ref]17)
+  $doc.Close()
+} catch {
+  Write-Error $_
+} finally {
+  $word.Quit()
+  [System.Runtime.Interopservices.Marshal]::ReleaseComObject($word) | Out-Null
+}
+`;
+        fs.writeFileSync(scriptPath, scriptContent);
+        const { execSync } = require('child_process');
+        execSync(`powershell -ExecutionPolicy Bypass -File "${scriptPath}"`, { windowsHide: true, timeout: 30000 });
+        pdfUrl = `/docs/${pdfFilename}`;
+        if (fs.existsSync(scriptPath)) fs.unlinkSync(scriptPath);
+    } catch (e) {
+        console.error("Failed to generate PDF via PowerShell:", e);
+    }
+
     // 5. Save Record to Database
     const repairRecord = await prisma.repairs.create({
       data: {
@@ -192,7 +216,7 @@ class QuotationService {
         jam: data.jam,
         procedures: data.procedures || [],
         inspections: data.inspections || [],
-        images: imagesArray, // Store mapping in DB, real files could be uploaded to S3/Cloudinary in future
+        images: imagesArray,
         wo: data.wo,
         an: data.an,
         po: data.po,
@@ -204,7 +228,7 @@ class QuotationService {
         labor_cost: parseFloat(data.labor_cost) || 0,
         material_cost: parseFloat(data.material_cost) || 0,
         estimated_completion: data.estimated_completion ? new Date(data.estimated_completion) : null,
-        pdf_path: publicUrl, // Storing DOCX path in the same column for now
+        pdf_path: pdfUrl || publicUrl, // Storing PDF if available, fallback to DOCX
         status: 'In Progress' 
       }
     });
@@ -218,7 +242,7 @@ class QuotationService {
       }
     });
 
-    return { repairRecord, pdfUrl: publicUrl }; // Returning pdfUrl key so frontend doesn't break, though it's a docx
+    return { repairRecord, docxUrl: publicUrl, pdfUrl: pdfUrl || publicUrl };
   }
 }
 

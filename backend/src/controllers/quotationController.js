@@ -12,8 +12,8 @@ exports.generateQuotation = async (req, res) => {
       try { formData.inspections = JSON.parse(formData.inspections); } catch (e) { formData.inspections = []; }
     }
 
-    // Attach uploaded files to formData
-    formData.uploadedImages = req.files || [];
+    // Attach uploaded files to formData (limit to max 6 images)
+    formData.uploadedImages = (req.files || []).slice(0, 6);
 
     // Default userId to 1 if auth middleware is not yet implemented fully
     const userId = req.user ? req.user.id : 1; 

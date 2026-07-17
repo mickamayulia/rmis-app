@@ -6,6 +6,8 @@ require('dotenv').config();
 const app = express();
 
 const path = require('path');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger');
 
 // Middlewares
 app.use(cors({
@@ -19,6 +21,13 @@ app.use(cookieParser());
 // Static Files (for generated PDFs and DOCXs)
 app.use('/pdfs', express.static(path.join(__dirname, '../public/pdfs')));
 app.use('/docs', express.static(path.join(__dirname, '../public/docs')));
+
+// Swagger UI Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'RMIS API Docs',
+}));
+
 // Routes
 const authRoutes = require('./routes/authRoutes');
 const quotationRoutes = require('./routes/quotationRoutes');
